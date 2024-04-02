@@ -1,12 +1,15 @@
 import os
 
 import matplotlib.pyplot as plt
-from matplotlib.colors import rgb_to_hsv
 import numpy as np
 from PIL import Image
 
 from question_1 import apply_2d_fourier_transform, plot_thresholded_images
 from question_2 import plot_hsv_channels, threshold_channel, cluster_image_with_kmeans, segment_and_evaluate_glom_image
+from question_3 import one_sphere
+from question_4 import load_image, evaluate_segmentation, create_segmentation_label
+
+from skimage.filters import butterworth
 
 
 if __name__ == '__main__':
@@ -22,6 +25,7 @@ if __name__ == '__main__':
     plot_thresholded_images(high_pass_thresholds, transformed_pod, filter_type='high')
 
     # Q2:
+    # noinspection PyTypeChecker
     example_glom_image = np.array(Image.open('./assets/Glomeruli_Images/XY01_IU-21-015F2_raw.png'))
     hsv_example = plot_hsv_channels(example_glom_image)
 
@@ -60,15 +64,37 @@ if __name__ == '__main__':
     kmeans_example = cluster_image_with_kmeans(example_glom_image, plot_recon=True)
     hsv_kmeans = cluster_image_with_kmeans(hsv_example, plot_recon=True)
 
-    for image, mask, gt in zip(os.listdir('./assets/Glomeruli_Images'),
-                               os.listdir('./assets/Glomeruli Boundary Masks'),
-                               os.listdir('./assets/Glomeruli_GT_Masks')):
-        image_array = np.array(Image.open(f'./assets/Glomeruli_Images/{image}'))
-        mask_array = np.array(Image.open(f'./assets/Glomeruli Boundary Masks/{mask}'))
-        gt_array = np.array(Image.open(f'./assets/Glomeruli_GT_Masks/{gt}'))
+    for filename in os.listdir('./assets/Glomeruli_Images'):
+        identifier = filename.split('_raw.png')[0]
+        image = np.array(Image.open(f'./assets/Glomeruli_Images/{filename}'))
+        mask = np.array(Image.open(f'./assets/Glomeruli Boundary Masks/{identifier}_mask.png'))
+        gt = np.array(Image.open(f'./assets/Glomeruli_GT_Masks/{identifier}_comp.png'))
 
-        result = segment_and_evaluate_glom_image(image_array, mask_array, gt_array)
-        print(f'--------------- {image} ---------------')
-        for item in result:
-            print(item)
+        result = segment_and_evaluate_glom_image(image, mask, gt)
+        print(f'--------------- {identifier} ---------------')
+        for item, label in zip(result, ['Accuracy', 'Sensitivity', 'Specificity', 'Dice']):
+            print(f'{label}: {item}')
+
+    circle_image = one_sphere(15, 150, (40, 40))
+    transform_image = apply_2d_fourier_transform(circle_image, display=True)
+    high_passed = butterworth(circle_image, high_pass=True)
+
+    plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.imshow(circle_image, cmap='gray')
+    plt.title('Original circle')
+    plt.subplot(1, 2, 2)
+    plt.xticks([]), plt.yticks([])
+    plt.imshow(high_passed, cmap='gray')
+    plt.xticks([]), plt.yticks([])
+    plt.show()
+
+    # Q4
+    stripes = load_image('./assets/pattern_seg.png')
+    segmentation = create_segmentation_label(stripes)
+    ground_truth = load_image('./assets/ground_truth_seg.png')
+    result = evaluate_segmentation(segmentation, ground_truth)
+    print('----------------------------')
+    for item, label in zip(result, ['Accuracy', 'Sensitivity', 'Specificity']):
+        print(f'{label}: {item}')
 

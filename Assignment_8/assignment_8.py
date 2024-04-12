@@ -68,7 +68,6 @@ if __name__ == '__main__':
     gt = cv2.imread('assets/SST-ANT_GT.jpg')
     gt = cv2.cvtColor(gt, cv2.COLOR_BGR2GRAY)
 
-
     dic_pred = segment_dic(dic, display=True)
     fluor_pred = segment_fluorescence(fluor, display=True)
 

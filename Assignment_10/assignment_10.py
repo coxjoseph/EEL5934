@@ -6,9 +6,9 @@ import pandas as pd
 from skimage.util import random_noise
 from skimage.measure import regionprops_table
 from skimage.morphology import label
-# from keras.models import Sequential
-# from keras.layers import Dense, Flatten
-# from keras.optimizers import Adam
+from keras.models import Sequential
+from keras.layers import Dense, Flatten
+from keras.optimizers import Adam
 import matplotlib.pyplot as plt
 
 

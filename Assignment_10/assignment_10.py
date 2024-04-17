@@ -5,11 +5,12 @@ import cv2
 import pandas as pd
 from skimage.util import random_noise
 from skimage.measure import regionprops_table
-from skimage.morphology import label
 from keras.models import Sequential
-from keras.layers import Dense, Flatten
+from keras.layers import Dense, Flatten, Input
 from keras.optimizers import Adam
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
 
 
 def create_motion_blur_kernel() -> np.ndarray:
@@ -50,19 +51,17 @@ def region_properties(image_array: np.ndarray) -> np.ndarray:
     properties_array = []
     for individual_image in image_array:
         _, binarized_image = cv2.threshold(individual_image, 0, 255, cv2.THRESH_OTSU)
-
-        labeled_image = label(binarized_image)
-        properties = regionprops_table(labeled_image,
+        properties = regionprops_table(binarized_image,
                                        properties=('area', 'eccentricity', 'solidity', 'perimeter', 'extent'))
-        properties_array.append(pd.DataFrame(properties).to_numpy())
-    print(properties_array)
-    print(properties_array[0].shape)
+        properties_df = pd.DataFrame(properties)
+        properties = properties_df.to_numpy()
+        properties_array.append(properties)
 
     return np.array(properties_array)
 
 
 def train_mlp(data: np.ndarray, labels: np.ndarray, learning_rate: float = 5e-15,
-              n_epochs: int = 1e4, hidden_layer_size : int = 10, plot: bool = False) -> float:
+              n_epochs: int = int(1e4), hidden_layer_size: int = 10, plot: bool = False, label=None) -> float:
     num_classes = labels.shape[1]
 
     if data.ndim > 2:
@@ -71,7 +70,8 @@ def train_mlp(data: np.ndarray, labels: np.ndarray, learning_rate: float = 5e-15
     data = data.astype('float32') / 255.0
 
     model = Sequential([
-        Flatten(input_shape=(data.shape[1], )),
+        Input((data.shape[1], )),
+        Flatten(),
         Dense(hidden_layer_size, activation='relu'),
         Dense(num_classes, activation='softmax')
     ])
@@ -79,7 +79,7 @@ def train_mlp(data: np.ndarray, labels: np.ndarray, learning_rate: float = 5e-15
     optimizer = Adam(learning_rate=learning_rate)
     model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
-    history = model.fit(data, labels, epochs=n_epochs, verbose=1)
+    history = model.fit(data, labels, epochs=n_epochs, verbose=0)
     final_accuracy = history.history['accuracy'][-1]
     print(f'Final accuracy: {final_accuracy}')
 
@@ -99,6 +99,7 @@ def train_mlp(data: np.ndarray, labels: np.ndarray, learning_rate: float = 5e-15
         plt.ylabel('Accuracy')
 
         plt.tight_layout()
+        plt.savefig(f'./figures/{label}.png')
         plt.show()
 
     return final_accuracy
@@ -122,20 +123,22 @@ if __name__ == '__main__':
     circle_pixel_features = circles.reshape((100, 50*50))
     star_pixel_features = stars.reshape((100, 50*50))
     pixel_features = np.vstack((circle_pixel_features, star_pixel_features))
+    print(f'{pixel_features.shape=}')
 
     circle_binarized_features = region_properties(circles)
     star_binarized_features = region_properties(stars)
-    binarized_features = np.vstack((circle_binarized_features, star_binarized_features))
+    binarized_features = np.squeeze(np.vstack((circle_binarized_features, star_binarized_features)))
+    print(f'{binarized_features.shape=}')
 
     image_labels = [[1, 0]] * 100
     image_labels.extend([[0, 1]] * 100)
     image_labels = np.array(image_labels)
 
-
     # Q3:
-    default_pixel_accuracy = train_mlp(pixel_features, image_labels, plot=True)
-    better_pixel_accuracy = train_mlp(pixel_features, image_labels, hidden_layer_size=15, learning_rate=1e-5, plot=True)
+    default_pixel_accuracy = train_mlp(pixel_features, image_labels, plot=True, label='pixel')
+    better_pixel_accuracy = train_mlp(pixel_features, image_labels, hidden_layer_size=15, learning_rate=1e-4, plot=True,
+                                      label='better_pixel')
 
-    default_feature_accuracy = train_mlp(binarized_features, image_labels, plot=True)
-    better_feature_accuracy = train_mlp(binarized_features, image_labels, hidden_layer_size=15, learning_rate=1e-5,
-                                        plot=True)
+    default_feature_accuracy = train_mlp(binarized_features, image_labels, plot=True, label='binarized')
+    better_feature_accuracy = train_mlp(binarized_features, image_labels, hidden_layer_size=20, learning_rate=5e-3,
+                                        plot=True, label='better_binarized')

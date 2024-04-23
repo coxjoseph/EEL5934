@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 def segment_podocytes(image: np.ndarray, threshold_percentage: float = 0.8, display: bool = False) -> np.ndarray:
@@ -71,11 +72,6 @@ def feature_extraction(image: np.ndarray) -> dict:
     min_perimeter = np.min(perimeters)
     max_perimeter = np.max(perimeters)
 
-    area_features = [median_area, min_area, max_area]
-    circularity_features = [median_circularity, min_circularity, max_circularity]
-    solidity_features = [median_solidity, min_solidity, max_solidity]
-    perimeter_features = [median_perimeter, min_perimeter, max_perimeter]
-
     return {
         'median_area': median_area,
         'min_area': min_area,
@@ -112,4 +108,11 @@ if __name__ == '__main__':
             image_features['label'] = labels.loc[labels['ImageName'] == filename, 'Label'].iloc[0]
             features = features.append(image_features, ignore_index=True)
 
+    features_list = [col for col in features.columns if col != 'label']
 
+    for feature in features_list:
+        sns.boxplot(x='label', y=feature, data=features)
+        plt.title(f'Boxplot of {feature} by Label')
+        plt.xlabel('Label')
+        plt.ylabel(feature)
+        plt.show()

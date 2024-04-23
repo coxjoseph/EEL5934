@@ -6,12 +6,14 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-def segment_podocytes(image: np.ndarray, threshold_percentage: float = 0.8, display: bool = False) -> np.ndarray:
-    threshold = np.max(image) * threshold_percentage
-    _, binary_image = cv2.threshold(grayscale_image, threshold, 255, cv2.THRESH_BINARY)
+def segment_podocytes(image: np.ndarray, threshold_percentage: float = 0.2, display: bool = False) -> np.ndarray:
+    image[image == 0] = 255  # Switch background color
 
+    threshold = np.max(image) * threshold_percentage
+    _, binary_image = cv2.threshold(grayscale_image, threshold, 255, cv2.THRESH_BINARY_INV)
     if display:
         cv2.imshow('Binary Image', binary_image)
+        cv2.imshow('Original Image', image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -98,15 +100,17 @@ if __name__ == '__main__':
 
     for glom_path in os.listdir('./assets/P57_Glomeruli'):
         if glom_path.endswith('.png'):
-            filename = glom_path.split('/')[-1]
-            plot = counter > 4
-            grayscale_image = cv2.imread(glom_path, cv2.IMREAD_GRAYSCALE)
+            filename = f'./assets/P57_Glomeruli/{glom_path}'
+            plot = counter < 4
+            grayscale_image = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
             binary_podocytes = segment_podocytes(grayscale_image, display=plot)
             counter += 1
 
             image_features = feature_extraction(binary_podocytes)
-            image_features['label'] = labels.loc[labels['ImageName'] == filename, 'Label'].iloc[0]
-            features = features.append(image_features, ignore_index=True)
+            image_features['label'] = labels.loc[labels['ImageName'] == glom_path, 'Label'].iloc[0]
+            image_features['image_name'] = glom_path
+            image_features = pd.DataFrame(image_features, index=[0])
+            features = pd.concat([features, image_features], ignore_index=True)
 
     features_list = [col for col in features.columns if col != 'label']
 
